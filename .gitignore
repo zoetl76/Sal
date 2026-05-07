@@ -1,0 +1,8 @@
+Risk.local.md
+trades.log
+journal/
+.env
+.env.*
+!.env.example
+node_modules/
+.DS_Store

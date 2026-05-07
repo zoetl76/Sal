@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "trading-development-kit",
+  "version": "0.1.0",
+  "description": "Five-layer Claude Code system for a consistent, rule-based trading operation. Memory, knowledge, guardrails, delegation, and distribution.",
+  "author": {
+    "name": "Sal"
+  },
+  "skills": [
+    "./.claude/skills/breakout/SKILL.md",
+    "./.claude/skills/pullback/SKILL.md",
+    "./.claude/skills/mean-reversion/SKILL.md",
+    "./.claude/skills/find-skills/SKILL.md"
+  ],
+  "agents": [
+    "./.claude/agents/market-researcher.md",
+    "./.claude/agents/risk-manager.md",
+    "./.claude/agents/journal-analyzer.md"
+  ],
+  "commands": [
+    "./.claude/commands/enter.md",
+    "./.claude/commands/scale.md",
+    "./.claude/commands/cut.md",
+    "./.claude/commands/hedge.md",
+    "./.claude/commands/close.md"
+  ],
+  "hooks": [
+    "./hooks/PreMarket.sh",
+    "./hooks/PostTrade.sh",
+    "./hooks/EndOfDay.sh"
+  ],
+  "memory": [
+    "./CLAUDE.md",
+    "./Risk.md"
+  ]
+}

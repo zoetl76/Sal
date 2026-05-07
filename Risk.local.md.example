@@ -1,0 +1,9 @@
+# Risk.local.md — Personal Overrides (NOT COMMITTED)
+
+> Copy this file to `Risk.local.md`. It is gitignored. Use it for account-specific
+> values you don't want in version control.
+
+## Overrides
+- Account size: <!-- exact $ value -->
+- Broker API keys: <!-- never commit these to Risk.md -->
+- Personal daily loss tolerance (may be stricter than Risk.md, never looser):
