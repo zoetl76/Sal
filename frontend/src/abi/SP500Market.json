@@ -1,0 +1,27 @@
+{
+  "address": "0x0000000000000000000000000000000000000000",
+  "_note": "Remplace 'address' après npm run deploy:polygon dans contract/",
+  "abi": [
+    {"type":"constructor","inputs":[{"name":"_usdc","type":"address"},{"name":"_oracle","type":"address"},{"name":"_treasury","type":"address"}],"stateMutability":"nonpayable"},
+    {"type":"function","name":"betDown","inputs":[{"name":"epoch","type":"uint256"},{"name":"amount","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"betUp","inputs":[{"name":"epoch","type":"uint256"},{"name":"amount","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"claim","inputs":[{"name":"epochs","type":"uint256[]"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"currentEpoch","inputs":[],"outputs":[{"name":"","type":"uint256"}],"stateMutability":"view"},
+    {"type":"function","name":"executeRound","inputs":[{"name":"closePrice","type":"uint256"},{"name":"newPrice","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"genesisStartRound","inputs":[{"name":"price","type":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"getMultipliers","inputs":[{"name":"epoch","type":"uint256"}],"outputs":[{"name":"upMult","type":"uint256"},{"name":"downMult","type":"uint256"}],"stateMutability":"view"},
+    {"type":"function","name":"isClaimable","inputs":[{"name":"epoch","type":"uint256"},{"name":"user","type":"address"}],"outputs":[{"name":"","type":"bool"}],"stateMutability":"view"},
+    {"type":"function","name":"ledger","inputs":[{"name":"","type":"uint256"},{"name":"","type":"address"}],"outputs":[{"name":"position","type":"uint8"},{"name":"amount","type":"uint256"},{"name":"claimed","type":"bool"}],"stateMutability":"view"},
+    {"type":"function","name":"oracle","inputs":[],"outputs":[{"name":"","type":"address"}],"stateMutability":"view"},
+    {"type":"function","name":"pause","inputs":[],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"rounds","inputs":[{"name":"","type":"uint256"}],"outputs":[{"name":"epoch","type":"uint256"},{"name":"startTimestamp","type":"uint256"},{"name":"lockTimestamp","type":"uint256"},{"name":"closeTimestamp","type":"uint256"},{"name":"startPrice","type":"uint256"},{"name":"closePrice","type":"uint256"},{"name":"longAmount","type":"uint256"},{"name":"shortAmount","type":"uint256"},{"name":"rewardAmount","type":"uint256"},{"name":"rewardBase","type":"uint256"},{"name":"oracleCalled","type":"bool"}],"stateMutability":"view"},
+    {"type":"function","name":"setOracle","inputs":[{"name":"_oracle","type":"address"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"unpause","inputs":[],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"withdrawTreasury","inputs":[],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"event","name":"BetDown","inputs":[{"name":"user","type":"address","indexed":true},{"name":"epoch","type":"uint256","indexed":true},{"name":"amount","type":"uint256","indexed":false}]},
+    {"type":"event","name":"BetUp","inputs":[{"name":"user","type":"address","indexed":true},{"name":"epoch","type":"uint256","indexed":true},{"name":"amount","type":"uint256","indexed":false}]},
+    {"type":"event","name":"Claimed","inputs":[{"name":"user","type":"address","indexed":true},{"name":"epoch","type":"uint256","indexed":true},{"name":"amount","type":"uint256","indexed":false}]},
+    {"type":"event","name":"RoundSettled","inputs":[{"name":"epoch","type":"uint256","indexed":true},{"name":"closePrice","type":"uint256","indexed":false},{"name":"longAmount","type":"uint256","indexed":false},{"name":"shortAmount","type":"uint256","indexed":false}]},
+    {"type":"event","name":"RoundStarted","inputs":[{"name":"epoch","type":"uint256","indexed":true},{"name":"startPrice","type":"uint256","indexed":false},{"name":"startTimestamp","type":"uint256","indexed":false}]}
+  ]
+}
