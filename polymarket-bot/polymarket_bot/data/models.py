@@ -4,57 +4,8 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
-
-@dataclass(frozen=True)
-class Tick:
-    """Tick data for persistence.
-
-    Attributes:
-        source: Feed source identifier.
-        token_id: Token or market identifier.
-        price: Current price.
-        timestamp: Unix timestamp.
-        volume: Trade volume.
-        bid: Best bid price.
-        ask: Best ask price.
-        sequence_number: Sequence number for ordering.
-    """
-
-    source: str
-    token_id: str
-    price: float
-    timestamp: float
-    volume: float = 0.0
-    bid: float = 0.0
-    ask: float = 0.0
-    sequence_number: int = 0
-
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize tick to dictionary."""
-        return asdict(self)
-
-    def to_json(self) -> str:
-        """Serialize tick to JSON string."""
-        return json.dumps(self.to_dict())
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Tick":
-        """Deserialize tick from dictionary."""
-        return cls(
-            source=data["source"],
-            token_id=data["token_id"],
-            price=float(data["price"]),
-            timestamp=float(data["timestamp"]),
-            volume=float(data.get("volume", 0.0)),
-            bid=float(data.get("bid", 0.0)),
-            ask=float(data.get("ask", 0.0)),
-            sequence_number=int(data.get("sequence_number", 0)),
-        )
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "Tick":
-        """Deserialize tick from JSON string."""
-        return cls.from_dict(json.loads(json_str))
+# Re-export the canonical Tick from feeds.base to avoid dual Tick classes.
+from polymarket_bot.feeds.base import Tick
 
 
 @dataclass(frozen=True)

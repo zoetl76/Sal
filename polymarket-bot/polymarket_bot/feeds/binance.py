@@ -23,25 +23,34 @@ class BinanceFeed(BaseFeed):
     """Binance websocket feed for cryptocurrency price data.
 
     Subscribes to trade streams for specified symbols (e.g., btcusdt, ethusdt)
-    and produces normalized Tick objects.
+    and produces normalized Tick objects. Includes automatic reconnection with
+    exponential backoff.
     """
 
     def __init__(
         self,
         symbols: Optional[list[str]] = None,
         ws_url: str = BINANCE_WS_URL,
+        reconnect_delay_s: float = 1.0,
+        max_reconnect_delay_s: float = 60.0,
     ) -> None:
         """Initialize Binance feed.
 
         Args:
             symbols: List of trading pair symbols (e.g., ['btcusdt', 'ethusdt']).
             ws_url: WebSocket base URL.
+            reconnect_delay_s: Initial reconnection delay in seconds.
+            max_reconnect_delay_s: Maximum reconnection delay in seconds.
         """
         super().__init__(source_name="binance")
         self.symbols = symbols or ["btcusdt", "ethusdt"]
         self.ws_url = ws_url
         self._ws: Any = None
         self._sequence: int = 0
+        self._reconnect_delay_s = reconnect_delay_s
+        self._max_reconnect_delay_s = max_reconnect_delay_s
+        self._current_delay: float = reconnect_delay_s
+        self._reconnect_count: int = 0
 
     def _build_stream_url(self) -> str:
         """Build the combined stream URL for multiple symbols."""
@@ -55,6 +64,7 @@ class BinanceFeed(BaseFeed):
 
             url = self._build_stream_url()
             self._ws = await websockets.connect(url)
+            self._current_delay = self._reconnect_delay_s  # Reset on success
             self._logger.info("binance_connected", symbols=self.symbols)
         except Exception as e:
             self._logger.error("binance_connection_failed", error=str(e))
@@ -66,6 +76,34 @@ class BinanceFeed(BaseFeed):
             await self._ws.close()
             self._ws = None
         self._logger.info("binance_disconnected")
+
+    async def reconnect(self) -> None:
+        """Reconnect with exponential backoff.
+
+        Retries connection with increasing delays up to max_reconnect_delay_s.
+        """
+        while self._running:
+            self._reconnect_count += 1
+            self._logger.info(
+                "binance_reconnecting",
+                delay_s=self._current_delay,
+                attempt=self._reconnect_count,
+            )
+            await asyncio.sleep(self._current_delay)
+            try:
+                await self.connect()
+                self._logger.info("binance_reconnected", attempt=self._reconnect_count)
+                return
+            except Exception as e:
+                self._logger.warning(
+                    "binance_reconnect_failed",
+                    error=str(e),
+                    delay_s=self._current_delay,
+                )
+                # Exponential backoff
+                self._current_delay = min(
+                    self._current_delay * 2, self._max_reconnect_delay_s
+                )
 
     def parse_message(self, raw: str) -> Optional[Tick]:
         """Parse a Binance trade stream message into a Tick.

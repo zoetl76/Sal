@@ -102,6 +102,10 @@ class WebSocketManager:
         # Layer 5: Staggered startup
         await self._pool.start()
 
+        # The pool's start() already launches the respawn loop (Layer 2).
+        # Store reference to the pool's respawn task for cleanup.
+        self._respawn_task = self._pool._respawn_task
+
         self._logger.info("manager_started", pool_size=self._pool.active_count)
         return True
 

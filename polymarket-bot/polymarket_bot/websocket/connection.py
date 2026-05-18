@@ -31,6 +31,7 @@ class WebSocketConnection:
 
     GRACE_PERIOD_SECONDS: float = 8.0
     JITTER_EMA_ALPHA: float = 0.3  # EMA smoothing factor
+    INTERVAL_EMA_ALPHA: float = 0.1  # Smoothing factor for expected interval
 
     def __init__(self, url: str, connection_id: Optional[str] = None) -> None:
         """Initialize a websocket connection wrapper.
@@ -45,6 +46,7 @@ class WebSocketConnection:
         self.last_tick_time: float = 0.0
         self.tick_count: int = 0
         self.jitter_ema: float = 0.0
+        self._interval_ema: float = 0.0  # Expected (mean) interval for jitter calc
         self._first_tick_skipped: bool = False
         self._ws: Any = None
         self._connected: bool = False
@@ -116,16 +118,25 @@ class WebSocketConnection:
     def update_jitter_ema(self, tick_time: float) -> None:
         """Update the jitter EMA based on inter-tick timing.
 
-        Jitter is the absolute deviation from the expected tick interval.
-        Uses exponential moving average for smoothing.
+        Jitter is the absolute deviation from the expected (mean) tick interval.
+        Uses exponential moving average for smoothing both the expected interval
+        and the jitter itself.
 
         Args:
             tick_time: Timestamp of the current tick.
         """
         if self.last_tick_time > 0:
             interval_ms = (tick_time - self.last_tick_time) * 1000.0
-            # Jitter is deviation from expected (ideally uniform) interval
-            jitter = abs(interval_ms)
+            # Update the expected interval EMA
+            if self._interval_ema == 0.0:
+                self._interval_ema = interval_ms
+            else:
+                self._interval_ema = (
+                    self.INTERVAL_EMA_ALPHA * interval_ms
+                    + (1 - self.INTERVAL_EMA_ALPHA) * self._interval_ema
+                )
+            # Jitter is deviation from expected interval
+            jitter = abs(interval_ms - self._interval_ema)
             if self.jitter_ema == 0.0:
                 self.jitter_ema = jitter
             else:
@@ -164,4 +175,5 @@ class WebSocketConnection:
         self.last_tick_time = 0.0
         self.tick_count = 0
         self.jitter_ema = 0.0
+        self._interval_ema = 0.0
         self._first_tick_skipped = False

@@ -53,7 +53,12 @@ class BacktestResult:
 
     @property
     def sharpe_ratio(self) -> float:
-        """Annualized Sharpe ratio from equity curve returns."""
+        """Sharpe ratio from equity curve returns.
+
+        Computes mean/std of per-tick PnL changes without annualization,
+        since the equity curve is at tick granularity and the number of
+        ticks per day is not fixed.
+        """
         if len(self.equity_curve) < 2:
             return 0.0
 
@@ -63,8 +68,7 @@ class BacktestResult:
         if returns.std() == 0:
             return 0.0
 
-        # Assume daily frequency, annualize with sqrt(252)
-        return float(returns.mean() / returns.std() * np.sqrt(252))
+        return float(returns.mean() / returns.std())
 
     @property
     def max_drawdown(self) -> float:

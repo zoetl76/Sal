@@ -2,9 +2,10 @@
 
 import asyncio
 import hashlib
+import json
 import time
-from dataclasses import dataclass, field
-from typing import AsyncIterator, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, AsyncIterator, Optional
 
 import structlog
 
@@ -39,6 +40,33 @@ class Tick:
         """Generate a hash for deduplication based on tick content."""
         content = f"{self.source}:{self.token_id}:{self.price}:{self.timestamp}:{self.sequence_number}"
         return hashlib.md5(content.encode()).hexdigest()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize tick to dictionary."""
+        return asdict(self)
+
+    def to_json(self) -> str:
+        """Serialize tick to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Tick":
+        """Deserialize tick from dictionary."""
+        return cls(
+            source=data["source"],
+            token_id=data["token_id"],
+            price=float(data["price"]),
+            timestamp=float(data["timestamp"]),
+            volume=float(data.get("volume", 0.0)),
+            bid=float(data.get("bid", 0.0)),
+            ask=float(data.get("ask", 0.0)),
+            sequence_number=int(data.get("sequence_number", 0)),
+        )
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "Tick":
+        """Deserialize tick from JSON string."""
+        return cls.from_dict(json.loads(json_str))
 
 
 class BaseFeed:

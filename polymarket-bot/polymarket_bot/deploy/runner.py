@@ -158,8 +158,8 @@ class BotRunner:
         if anomaly is not None:
             self._monitor.on_anomaly(anomaly)
 
-        # Check if paused
-        if self._anomaly_detector.is_paused:
+        # Check if paused (by anomaly detector or monitor)
+        if self._anomaly_detector.is_paused or self._monitor.is_paused:
             return []
 
         # Check stop-losses (zero latency)
@@ -171,10 +171,13 @@ class BotRunner:
         # Combine signals
         all_signals = stop_signals + strategy_signals
 
+        # Track stop signal identities to bypass risk filter reliably
+        stop_signal_ids = {id(s) for s in stop_signals}
+
         # Apply risk filters (skip for stop-loss signals)
         validated_signals: list[Signal] = []
         for signal in all_signals:
-            if signal in stop_signals:
+            if id(signal) in stop_signal_ids:
                 # Stop-loss signals bypass risk filters
                 validated_signals.append(signal)
             else:

@@ -9,10 +9,12 @@ Supports multiple operation modes:
 
 import argparse
 import asyncio
+import signal
 import sys
 from typing import Optional
 
 from polymarket_bot.config import Config
+from polymarket_bot.deploy.runner import BotRunner, RunMode
 from polymarket_bot.logging_setup import get_logger, setup_logging
 
 
@@ -74,6 +76,14 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+_MODE_MAP = {
+    "live": RunMode.LIVE,
+    "dry-run": RunMode.DRY_RUN,
+    "backtest": RunMode.BACKTEST,
+    "record-only": RunMode.RECORD_ONLY,
+}
+
+
 async def run(args: argparse.Namespace) -> int:
     """Run the bot in the specified mode.
 
@@ -94,17 +104,38 @@ async def run(args: argparse.Namespace) -> int:
     setup_logging(level=log_level, log_format=log_format, log_file=log_file)
     logger = get_logger(__name__)
 
+    run_mode = _MODE_MAP[args.mode]
     logger.info("starting_bot", mode=args.mode, config=str(config))
 
-    if args.mode == "live":
-        logger.info("live_mode", msg="Live trading mode - not yet implemented")
-    elif args.mode == "dry-run":
-        logger.info("dry_run_mode", msg="Dry-run mode - not yet implemented")
-    elif args.mode == "backtest":
-        logger.info("backtest_mode", msg="Backtest mode - not yet implemented")
-    elif args.mode == "record-only":
-        logger.info("record_only_mode", msg="Record-only mode - not yet implemented")
+    # Create and start the BotRunner
+    runner = BotRunner(config=config, mode=run_mode)
+    await runner.start()
 
+    # For backtest mode, just start and return (no live loop)
+    if run_mode == RunMode.BACKTEST:
+        logger.info("backtest_mode", msg="Backtest mode started - run backtest via engine API")
+        await runner.stop()
+        return 0
+
+    # For live/dry-run/record-only, run until interrupted
+    stop_event = asyncio.Event()
+
+    def _signal_handler() -> None:
+        stop_event.set()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, _signal_handler)
+        except NotImplementedError:
+            # Windows does not support add_signal_handler
+            pass
+
+    logger.info("bot_running", mode=args.mode, msg="Bot is running. Press Ctrl+C to stop.")
+    await stop_event.wait()
+
+    await runner.stop()
+    logger.info("bot_stopped", mode=args.mode)
     return 0
 
 

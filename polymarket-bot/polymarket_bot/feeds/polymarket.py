@@ -26,6 +26,7 @@ class PolymarketFeed(BaseFeed):
 
     Connects to both the CLOB websocket for real-time order book
     updates and the Gamma websocket for market resolution data.
+    Includes automatic reconnection with exponential backoff.
     """
 
     def __init__(
@@ -33,6 +34,8 @@ class PolymarketFeed(BaseFeed):
         token_ids: Optional[list[str]] = None,
         clob_url: str = CLOB_WS_URL,
         gamma_url: str = GAMMA_WS_URL,
+        reconnect_delay_s: float = 1.0,
+        max_reconnect_delay_s: float = 60.0,
     ) -> None:
         """Initialize Polymarket feed.
 
@@ -40,6 +43,8 @@ class PolymarketFeed(BaseFeed):
             token_ids: List of token IDs to subscribe to.
             clob_url: WebSocket URL for CLOB data.
             gamma_url: WebSocket URL for Gamma data.
+            reconnect_delay_s: Initial reconnection delay in seconds.
+            max_reconnect_delay_s: Maximum reconnection delay in seconds.
         """
         super().__init__(source_name="polymarket")
         self.token_ids = token_ids or []
@@ -48,6 +53,10 @@ class PolymarketFeed(BaseFeed):
         self._clob_ws: Any = None
         self._gamma_ws: Any = None
         self._sequence: int = 0
+        self._reconnect_delay_s = reconnect_delay_s
+        self._max_reconnect_delay_s = max_reconnect_delay_s
+        self._current_delay: float = reconnect_delay_s
+        self._reconnect_count: int = 0
 
     async def connect(self) -> None:
         """Establish connections to CLOB and Gamma websockets."""
@@ -66,6 +75,7 @@ class PolymarketFeed(BaseFeed):
                 })
                 await self._clob_ws.send(subscribe_msg)
 
+            self._current_delay = self._reconnect_delay_s  # Reset on success
             self._logger.info("polymarket_connected", token_count=len(self.token_ids))
         except Exception as e:
             self._logger.error("polymarket_connection_failed", error=str(e))
@@ -80,6 +90,34 @@ class PolymarketFeed(BaseFeed):
             await self._gamma_ws.close()
             self._gamma_ws = None
         self._logger.info("polymarket_disconnected")
+
+    async def reconnect(self) -> None:
+        """Reconnect with exponential backoff.
+
+        Retries connection with increasing delays up to max_reconnect_delay_s.
+        """
+        while self._running:
+            self._reconnect_count += 1
+            self._logger.info(
+                "polymarket_reconnecting",
+                delay_s=self._current_delay,
+                attempt=self._reconnect_count,
+            )
+            await asyncio.sleep(self._current_delay)
+            try:
+                await self.connect()
+                self._logger.info("polymarket_reconnected", attempt=self._reconnect_count)
+                return
+            except Exception as e:
+                self._logger.warning(
+                    "polymarket_reconnect_failed",
+                    error=str(e),
+                    delay_s=self._current_delay,
+                )
+                # Exponential backoff
+                self._current_delay = min(
+                    self._current_delay * 2, self._max_reconnect_delay_s
+                )
 
     def _parse_clob_message(self, raw: str) -> Optional[Tick]:
         """Parse a CLOB websocket message into a Tick.

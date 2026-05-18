@@ -67,6 +67,7 @@ class ConnectionPool:
         """Start the pool with staggered connection startup (Layer 5).
 
         Spreads connection establishment evenly over STAGGER_WINDOW_S.
+        Also launches the background respawn loop (Layer 2).
         """
         self._running = True
         delay_per_conn = self.STAGGER_WINDOW_S / max(self.min_connections, 1)
@@ -85,6 +86,9 @@ class ConnectionPool:
             # Stagger: don't await connect in production, just schedule
             # In testing, connections are pre-built
             await asyncio.sleep(delay_per_conn)
+
+        # Layer 2: Launch the dynamic respawn loop as a background task
+        self._respawn_task = asyncio.create_task(self.run_respawn_loop())
 
         self._logger.info("pool_started", active=self.active_count)
 

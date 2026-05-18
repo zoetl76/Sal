@@ -94,12 +94,13 @@ class TestJitterTracking:
         assert conn.jitter_ema == 0.0
 
     def test_jitter_ema_updates_on_tick(self):
-        """Jitter EMA should update after processing ticks."""
+        """Jitter EMA should update after processing ticks with varying intervals."""
         conn = WebSocketConnection(url="wss://test.example.com")
         t = time.time()
 
         conn.process_tick(make_tick(timestamp=t))  # first tick (skipped)
-        conn.process_tick(make_tick(timestamp=t + 0.1, sequence=2))
+        conn.process_tick(make_tick(timestamp=t + 0.1, sequence=2))  # establishes baseline
+        conn.process_tick(make_tick(timestamp=t + 0.3, sequence=3))  # different interval
 
         assert conn.jitter_ema > 0.0
 
