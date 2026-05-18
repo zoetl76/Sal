@@ -1,0 +1,52 @@
+# Polymarket Trading Bot - Default Configuration
+# Override any value via environment variables or a custom YAML file.
+
+api:
+  polymarket_api_key: ""
+  polymarket_secret: ""
+  polymarket_passphrase: ""
+  binance_api_key: ""
+  binance_secret: ""
+  coinbase_api_key: ""
+  coinbase_secret: ""
+
+websocket:
+  # Number of concurrent WebSocket connections
+  num_connections: 6
+  # Respawn rate for reconnections (ms)
+  respawn_rate_ms: 500
+  # Jitter threshold for detecting stale connections (ms)
+  jitter_threshold_ms: 50
+  # Initial reconnection delay (seconds)
+  reconnect_delay_s: 1.0
+  # Maximum reconnection delay with exponential backoff (seconds)
+  max_reconnect_delay_s: 60.0
+  # WebSocket ping interval (seconds)
+  ping_interval_s: 30.0
+
+trading:
+  # Price filter bounds (ignore markets outside this range)
+  max_price_filter: 0.95
+  min_price_filter: 0.05
+  # Default stop-loss percentage
+  default_stop_loss_pct: 0.10
+  # Maximum position size in USD
+  max_position_size: 100.0
+  # Maximum number of open positions
+  max_open_positions: 10
+
+data:
+  # Directory for data storage
+  storage_path: "data/"
+  # SQLite database path
+  db_path: "data/market_data.db"
+  # Whether to record raw WebSocket messages
+  record_raw_messages: true
+
+logging:
+  # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  # Output format: json (machine-readable) or console (human-readable)
+  format: "json"
+  # Log file path (empty for stdout)
+  file_path: ""
