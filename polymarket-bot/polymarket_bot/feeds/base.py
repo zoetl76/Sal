@@ -99,15 +99,50 @@ class BaseFeed:
         raise NotImplementedError
         yield  # type: ignore[misc]
 
+    async def reconnect(self) -> None:
+        """Reconnect to the feed. Override in subclass for backoff logic."""
+        raise NotImplementedError
+
+    async def _run_listen_loop(self) -> None:
+        """Run the listen loop, reconnecting on connection failures."""
+        while self._running:
+            try:
+                async for tick in self._listen():
+                    await self._tick_queue.put(tick)
+            except Exception as e:
+                if not self._running:
+                    break
+                self._logger.warning("feed_connection_lost", error=str(e))
+                try:
+                    await self.reconnect()
+                except Exception as reconnect_err:
+                    self._logger.error(
+                        "feed_reconnect_failed", error=str(reconnect_err)
+                    )
+                    break
+
     async def start(self) -> None:
-        """Start the feed and begin producing ticks."""
+        """Start the feed and begin producing ticks.
+
+        Connects to the feed and launches the listen loop as a background task.
+        """
         self._running = True
         await self.connect()
+        self._listen_task: Optional[asyncio.Task[None]] = asyncio.create_task(
+            self._run_listen_loop()
+        )
         self._logger.info("feed_started")
 
     async def stop(self) -> None:
         """Stop the feed and close connections."""
         self._running = False
+        if hasattr(self, "_listen_task") and self._listen_task is not None:
+            self._listen_task.cancel()
+            try:
+                await self._listen_task
+            except asyncio.CancelledError:
+                pass
+            self._listen_task = None
         await self.disconnect()
         self._logger.info("feed_stopped")
 

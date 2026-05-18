@@ -9,6 +9,7 @@ import structlog
 
 from polymarket_bot.config import Config
 from polymarket_bot.data.models import Tick
+from polymarket_bot.deploy.executor import BaseExecutor, DryRunExecutor, LiveExecutor
 from polymarket_bot.deploy.issues import IssueHandler
 from polymarket_bot.deploy.monitor import Monitor
 from polymarket_bot.risk.anomaly import AnomalyDetector
@@ -65,6 +66,13 @@ class BotRunner:
         self._anomaly_detector = AnomalyDetector()
         self._monitor = Monitor(config)
         self._issue_handler = IssueHandler()
+
+        # Executor: instantiate based on mode
+        self._executor: Optional[BaseExecutor] = None
+        if self._mode == RunMode.DRY_RUN:
+            self._executor = DryRunExecutor()
+        elif self._mode == RunMode.LIVE:
+            self._executor = LiveExecutor()
 
         self._tick_count: int = 0
         self._signal_count: int = 0
@@ -192,16 +200,10 @@ class BotRunner:
                         token_id=signal.token_id,
                     )
 
-        # In dry-run mode, log signals but don't execute
-        if self._mode == RunMode.DRY_RUN:
+        # Execute validated signals through the executor
+        if self._executor is not None:
             for signal in validated_signals:
-                self._logger.info(
-                    "dry_run_signal",
-                    direction=signal.direction.value,
-                    token_id=signal.token_id,
-                    price=signal.price,
-                    size=signal.size,
-                )
+                await self._executor.execute_signal(signal)
 
         self._signal_count += len(validated_signals)
         return validated_signals

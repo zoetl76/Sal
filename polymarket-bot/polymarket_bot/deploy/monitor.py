@@ -107,6 +107,12 @@ class Monitor:
                         "price_discrepancy",
                         **discrepancy,
                     )
+                    details = (
+                        f"{source_names[i]}={prices[i]:.4f} vs "
+                        f"{source_names[j]}={prices[j]:.4f} "
+                        f"({diff_pct:.1%})"
+                    )
+                    self.pause(f"cross-verification discrepancy: {details}")
 
     def _update_health(self) -> None:
         """Update health metrics."""

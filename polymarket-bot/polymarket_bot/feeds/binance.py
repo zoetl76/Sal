@@ -7,7 +7,7 @@ Tick format. Used as an external signal source.
 import asyncio
 import json
 import time
-from typing import Any, Optional
+from typing import Any, AsyncIterator, Optional
 
 import structlog
 
@@ -104,6 +104,21 @@ class BinanceFeed(BaseFeed):
                 self._current_delay = min(
                     self._current_delay * 2, self._max_reconnect_delay_s
                 )
+
+    async def _listen(self) -> AsyncIterator[Tick]:
+        """Listen for messages from the Binance websocket.
+
+        Yields:
+            Parsed Tick objects from the websocket stream.
+
+        Raises:
+            Exception: On websocket connection loss.
+        """
+        while self._running and self._ws:
+            raw = await self._ws.recv()
+            tick = self.parse_message(raw)
+            if tick is not None:
+                yield tick
 
     def parse_message(self, raw: str) -> Optional[Tick]:
         """Parse a Binance trade stream message into a Tick.

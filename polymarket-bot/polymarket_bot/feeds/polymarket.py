@@ -8,7 +8,7 @@ normalized Tick dataclass.
 import asyncio
 import json
 import time
-from typing import Any, Optional
+from typing import Any, AsyncIterator, Optional
 
 import structlog
 
@@ -118,6 +118,21 @@ class PolymarketFeed(BaseFeed):
                 self._current_delay = min(
                     self._current_delay * 2, self._max_reconnect_delay_s
                 )
+
+    async def _listen(self) -> AsyncIterator[Tick]:
+        """Listen for messages from the Polymarket CLOB websocket.
+
+        Yields:
+            Parsed Tick objects from the CLOB websocket stream.
+
+        Raises:
+            Exception: On websocket connection loss.
+        """
+        while self._running and self._clob_ws:
+            raw = await self._clob_ws.recv()
+            tick = self._parse_clob_message(raw)
+            if tick is not None:
+                yield tick
 
     def _parse_clob_message(self, raw: str) -> Optional[Tick]:
         """Parse a CLOB websocket message into a Tick.
