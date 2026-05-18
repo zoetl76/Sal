@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Project scaffolding, configuration system, and core infrastructure - create the full project directory structure, requirements.txt, configuration system, logging setup, and the main entry point.",
+  "status": "completed",
+  "steps": [
+    "Create /projects/sandbox/Sal/polymarket-bot/ directory with full package structure: polymarket_bot/ (with subpackages: websocket/, data/, backtest/, strategy/, risk/, deploy/, feeds/), tests/, config/",
+    "Create requirements.txt with all dependencies: numpy, websockets, aiohttp, asyncio-related libs, pyyaml, python-dotenv, pytest, pytest-asyncio, pandas (for data analysis), sqlite3 (built-in), structlog or similar for structured logging",
+    "Create polymarket_bot/__init__.py with version info",
+    "Create polymarket_bot/config.py - Configuration management class that loads from: (1) environment variables, (2) .env file, (3) YAML config files in config/ directory. Support settings for: API keys (Polymarket, Binance, Coinbase), websocket params (num connections, respawn rate, jitter thresholds), trading params (max price filters, stop-loss defaults), data storage paths, logging levels",
+    "Create config/default.yaml with all configurable parameters and sensible defaults",
+    "Create .env.example with all required environment variables documented",
+    "Create polymarket_bot/logging_setup.py - Structured logging configuration using Python's logging module with structlog-style formatting. Support JSON and human-readable output. Include context fields: timestamp, module, level, trade_id, token_id",
+    "Create polymarket_bot/main.py - Main entry point with CLI argument parsing. Support modes: live, dry-run, backtest, record-only. Initialize config, logging, and dispatch to appropriate runner",
+    "Create README.md with: project overview, architecture description (all 8 steps from the playbook), setup instructions, usage examples for each mode, configuration reference",
+    "Create .gitignore appropriate for Python project (include data/, *.db, .env, __pycache__, etc.)"
+  ],
+  "acceptance_criteria": [
+    "pip install -r requirements.txt succeeds without errors",
+    "python -c 'from polymarket_bot.config import Config; c = Config(); print(c)' runs without error",
+    "python -c 'from polymarket_bot.logging_setup import setup_logging; setup_logging()' runs without error",
+    "python polymarket_bot/main.py --help shows usage information",
+    "All __init__.py files exist for proper package structure",
+    "README.md contains comprehensive documentation"
+  ],
+  "verification": [
+    "cd /projects/sandbox/Sal/polymarket-bot && pip install -r requirements.txt",
+    "cd /projects/sandbox/Sal/polymarket-bot && python -c 'from polymarket_bot.config import Config'",
+    "cd /projects/sandbox/Sal/polymarket-bot && python -c 'from polymarket_bot.logging_setup import setup_logging; setup_logging()'",
+    "cd /projects/sandbox/Sal/polymarket-bot && python -m polymarket_bot.main --help"
+  ],
+  "blocked_reason": null,
+  "findings": "structlog 25.5.0 uses ProcessorFormatter.wrap_for_formatter (not wrap_events_in_msg_field). pytest-asyncio 1.3.0 installed. The parent repo .gitignore does not conflict, but the polymarket-bot .gitignore needed /data/ (anchored) to avoid ignoring the polymarket_bot/data/ package directory."
+}
