@@ -383,12 +383,14 @@ grille, mais son pic d'equity repart du niveau courant.
 python -m unittest discover -s tests -v
 ```
 
-51 tests couvrent les indicateurs, la validation de configuration, la géométrie
+57 tests couvrent les indicateurs, la validation de configuration, la géométrie
 de la grille (paliers, TP/SL, ordres qui ne croisent jamais le marché), le
 dimensionnement, les garde-fous (drawdown terminal vs journalier, spread, plafond
 de positions, basket TP, fenêtres de session), le stop temporel, le refus des
 comptes réels en mode démo, le réalisme statistique du générateur de marchés,
-la sélection du pont Linux, et des scénarios de bout en bout sur le simulateur.
+la sélection du pont Linux, la résolution des identifiants par variables
+d'environnement, la détection de processus du diagnostic VPS, et des scénarios
+de bout en bout sur le simulateur.
 
 Aucune dépendance de test : bibliothèque standard uniquement.
 
@@ -416,9 +418,9 @@ mt5-grid-bot/
 │   ├── config.py             # chargement et validation
 │   ├── logger.py             # journalisation console + fichier rotatif
 │   └── bot.py                # assemblage et boucle principale
-├── deploy/                   # installation VPS (Wine, MT5, systemd, sécurité)
+├── deploy/                   # installation VPS + doctor.py (diagnostic de la chaîne)
 ├── mql5/GridScalperBTC.mq5   # Expert Advisor natif
-└── tests/                    # 51 tests, bibliothèque standard uniquement
+└── tests/                    # 57 tests, bibliothèque standard uniquement
 ```
 
 Le moteur ne parle qu'à l'interface `Broker` : la même logique tourne sur le

@@ -360,3 +360,82 @@ class TestDemoGuard(unittest.TestCase):
                         "config.demo.json doit refuser un compte reel")
         self.assertEqual(cfg.sizing.martingale_factor, 1.0)
         self.assertLessEqual(cfg.risk.max_drawdown_pct, 15.0)
+
+
+class TestCredentialsFromEnvironment(unittest.TestCase):
+    """Un mot de passe de broker ne doit pas vivre dans un fichier JSON."""
+
+    def _load(self, terminal: dict, env: dict):
+        import json as _json
+        import os
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "c.json"
+            path.write_text(_json.dumps({"terminal": terminal}))
+            with mock.patch.dict(os.environ, env, clear=False):
+                return Config.load(path)
+
+    def test_variables_are_substituted(self):
+        cfg = self._load(
+            {"login": "${MT5_LOGIN}", "password": "${MT5_PASSWORD}", "server": "Broker-Demo"},
+            {"MT5_LOGIN": "5031234", "MT5_PASSWORD": "s3cret"},
+        )
+        self.assertEqual(cfg.terminal.login, 5031234)
+        self.assertEqual(cfg.terminal.password, "s3cret")
+
+    def test_missing_variable_fails_loudly(self):
+        with self.assertRaises(ConfigError) as ctx:
+            self._load({"password": "${ABSENTE_XYZ}"}, {})
+        self.assertIn("ABSENTE_XYZ", str(ctx.exception))
+
+    def test_plain_values_are_untouched(self):
+        cfg = self._load({"login": 42, "password": "en-clair"}, {})
+        self.assertEqual(cfg.terminal.login, 42)
+        self.assertEqual(cfg.terminal.password, "en-clair")
+
+
+class TestDoctorProcessDetection(unittest.TestCase):
+    """Le diagnostic ne doit pas se declarer vrai a cause de sa propre invocation.
+
+    `pgrep -f Xvfb` matche la ligne de commande du shell qui le lance. Quand
+    c'est une session Claude qui pilote le VPS, elle tape ces noms en
+    permanence : chaque verification passerait au vert sans rien verifier.
+    """
+
+    def setUp(self):
+        import importlib.util
+        root = Path(__file__).resolve().parents[1]
+        spec = importlib.util.spec_from_file_location("doctor", root / "deploy" / "doctor.py")
+        module = importlib.util.module_from_spec(spec)
+        # dataclasses resout ses annotations via sys.modules[cls.__module__] :
+        # sans cet enregistrement, le chargement hors paquet echoue.
+        sys.modules["doctor"] = module
+        spec.loader.exec_module(module)
+        self.doctor = module
+
+    def test_absent_process_is_not_found_even_when_named_in_our_own_cmdline(self):
+        import subprocess
+        marker = "Xvfb-inexistant-pour-le-test"
+        # On lance un processus dont la ligne de commande contient le motif,
+        # mais dont le nom reel est "sleep" : il ne doit pas etre compte.
+        proc = subprocess.Popen(["sleep", "5"] if not marker else ["sleep", "5", marker])
+        try:
+            self.assertEqual(self.doctor.processes(marker), [])
+        finally:
+            proc.kill()
+            proc.wait()
+
+    def test_finds_a_process_by_its_real_name(self):
+        import subprocess
+        proc = subprocess.Popen(["sleep", "5"])
+        try:
+            pids = [pid for pid, _ in self.doctor.processes("sleep")]
+            self.assertIn(proc.pid, pids)
+        finally:
+            proc.kill()
+            proc.wait()
+
+    def test_one_line_flattens_multiline_errors(self):
+        flat = self.doctor.one_line("premiere ligne\nseconde ligne\n\n  troisieme")
+        self.assertNotIn("\n", flat)
+        self.assertIn("premiere ligne seconde ligne", flat)

@@ -8,6 +8,12 @@ Type=simple
 User=@APP_USER@
 WorkingDirectory=@APP_DIR@
 Environment=PYTHONUNBUFFERED=1
+# Identifiants du broker : jamais dans config.json, qui se lit trop facilement.
+# Ecris MT5_LOGIN / MT5_PASSWORD dans ce fichier (chmod 600, proprietaire du
+# service) et reference-les par ${MT5_LOGIN} dans la configuration.
+# Le "-" rend le fichier facultatif : sans lui, un fichier absent empeche le
+# demarrage alors que les identifiants peuvent etre en clair dans la config.
+EnvironmentFile=-/etc/gridbot.env
 ExecStart=@APP_DIR@/.venv/bin/python @APP_DIR@/run.py --config @APP_DIR@/config.json --live
 Restart=on-failure
 RestartSec=30

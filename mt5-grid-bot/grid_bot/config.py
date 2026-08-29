@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
 from typing import Any, get_type_hints
@@ -24,6 +26,37 @@ class TerminalConfig:
     # (paquet pymt5linux ou mt5linux). Laisser vide sous Windows.
     bridge_host: str = ""
     bridge_port: int = 18812
+
+    def resolve_env(self) -> None:
+        """Remplace les ${VARIABLES} par l'environnement.
+
+        Un mot de passe de broker n'a rien a faire dans un fichier de
+        configuration : ecris "${MT5_PASSWORD}" et exporte la variable. La
+        substitution echoue bruyamment si la variable manque, plutot que de
+        laisser le bot tenter une connexion avec le litteral "${MT5_PASSWORD}"
+        et de rendre l'erreur du broker incomprehensible.
+        """
+        for name in ("password", "server", "path"):
+            value = getattr(self, name)
+            if not isinstance(value, str):
+                continue
+            for var in re.findall(r"\$\{(\w+)\}", value):
+                if var not in os.environ:
+                    raise ConfigError(
+                        f"terminal.{name} reference ${{{var}}} mais cette variable "
+                        "d'environnement n'est pas definie."
+                    )
+                value = value.replace(f"${{{var}}}", os.environ[var])
+            setattr(self, name, value)
+        if isinstance(self.login, str):
+            for var in re.findall(r"\$\{(\w+)\}", self.login):
+                if var not in os.environ:
+                    raise ConfigError(
+                        f"terminal.login reference ${{{var}}} mais cette variable "
+                        "d'environnement n'est pas definie."
+                    )
+                self.login = os.environ[var]
+            self.login = int(self.login or 0)
 
 
 @dataclass
@@ -127,6 +160,7 @@ class Config:
         with path.open(encoding="utf-8") as fh:
             raw = json.load(fh)
         cfg = _from_dict(cls, raw, "config")
+        cfg.terminal.resolve_env()
         cfg.validate()
         return cfg
 

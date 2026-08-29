@@ -28,7 +28,26 @@ Python, pas de pont, pas de service supplémentaire.
 Prends le bot Python si tu veux le mode papier, les backtests hors terminal,
 l'optimiseur, ou les journaux exploitables ailleurs.
 
-## Installation
+## Si tu passes par une session Claude sur le VPS
+
+C'est le chemin recommandé : la skill `mt5-vps` du dépôt (`.claude/skills/`)
+contient le runbook complet, et `deploy/doctor.py` donne à la session un état
+vérifiable du système plutôt qu'une déduction à partir de messages d'erreur.
+
+```bash
+cd /opt/grid-bot
+python3 deploy/doctor.py --config config.json
+```
+
+Le diagnostic vérifie la mémoire, Wine, l'affichage virtuel, le terminal, le
+port du pont **et sur quelle interface il écoute**, le type de compte
+(démo/réel), le trading autorisé, le symbole, le spread courant, la
+configuration et les services. Chaque échec vient avec sa commande de
+réparation ; le code de sortie vaut 1 tant qu'il en reste un.
+
+Lance-le avant de démarrer le bot, et après chaque étape d'installation.
+
+## Installation manuelle
 
 ```bash
 ssh root@<ip-du-vps>
@@ -70,6 +89,33 @@ toujours trois choses à faire à la main, qu'il rappelle en fin d'exécution.
    (`BTCUSD`, `BTCUSD.a`, `Bitcoin`…) et le mettre dans `config.json`.
 
 3. **Calibrer `max_spread`** sur le spread réel de ton broker.
+
+## Diagnostic
+
+```bash
+python3 deploy/doctor.py --config config.json                # complet
+python3 deploy/doctor.py --config config.json --skip-trading # sans le broker
+python3 deploy/doctor.py --config config.json --json         # sortie machine
+```
+
+## Identifiants
+
+N'écris pas le mot de passe du broker dans `config.json`. La configuration
+développe les variables d'environnement :
+
+```json
+"terminal": { "login": "${MT5_LOGIN}", "password": "${MT5_PASSWORD}",
+              "server": "Broker-Demo", "bridge_host": "127.0.0.1" }
+```
+
+```bash
+printf 'MT5_LOGIN=5031234\nMT5_PASSWORD=xxxx\n' > /etc/gridbot.env
+chmod 600 /etc/gridbot.env && chown gridbot /etc/gridbot.env
+```
+
+Le service `gridbot-grid-bot` lit ce fichier. Une variable manquante fait
+échouer le démarrage avec un message qui la nomme, plutôt que de laisser le
+broker rejeter la connexion sans explication.
 
 ## Services
 
