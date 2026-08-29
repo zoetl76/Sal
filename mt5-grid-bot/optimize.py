@@ -51,8 +51,8 @@ SPEC = SymbolSpec(name="BTCUSD", digits=2, point=0.01, tick_size=0.01, tick_valu
                   contract_size=1.0, volume_min=0.01, volume_max=100.0,
                   volume_step=0.01, stops_level=0.0)
 
-# Espace de recherche : ce qui change vraiment le comportement d'une grille.
-SPACE: dict[str, list] = {
+# Espace de recherche large : ce qui change vraiment le comportement d'une grille.
+SPACE_LARGE: dict[str, list] = {
     "grid.levels":              [4, 6, 8, 10, 14],
     "grid.atr_mult":            [0.25, 0.4, 0.5, 0.7, 1.0, 1.4],
     "grid.step_min":            [50.0, 80.0, 120.0, 200.0],
@@ -67,6 +67,27 @@ SPACE: dict[str, list] = {
     "risk.basket_tp_currency":  [0.0, 15.0, 40.0, 100.0],
     "_net_ratio":               [0.4, 0.7, 1.05],   # plafond d'exposition nette
 }
+
+# Espace resserre autour de la geometrie qui survit : pas larges, peu de
+# positions simultanees, take profit au-dela d'un pas, stop lointain mais reel.
+SPACE_FOCUS: dict[str, list] = {
+    "grid.levels":              [6, 10, 14, 20],
+    "grid.atr_mult":            [0.7, 1.0, 1.4, 2.0],
+    "grid.step_min":            [150.0, 200.0, 300.0],
+    "grid.step_max":            [800.0, 1500.0],
+    "grid.tp_mult":             [1.3, 1.8, 2.5, 3.5],
+    "grid.sl_mult":             [5.0, 8.0, 12.0, 20.0],
+    "grid.mode":                ["both", "trend"],
+    "grid.rearm_cooldown_sec":  [120, 300, 900],
+    "grid.reanchor_mult":       [1.0, 1.5, 2.5],
+    "grid.trail_grid":          [False, True],
+    "risk.max_positions":       [2, 3, 4, 6],
+    "risk.basket_tp_currency":  [0.0, 40.0, 100.0],
+    "_net_ratio":               [0.25, 0.4, 0.55],
+}
+
+SPACES = {"large": SPACE_LARGE, "focus": SPACE_FOCUS}
+SPACE: dict[str, list] = SPACE_LARGE     # espace actif, choisi par --space
 
 SCENARIOS_EXPLORE = ["range", "bull", "bear", "chop", "mixed"]
 SCENARIOS_FULL = ["range", "bull", "bear", "crash", "chop", "mixed"]
@@ -281,7 +302,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=1, help="graine de la recherche")
     parser.add_argument("--out", default="config.optimized.json",
                         help="fichier de configuration ecrit pour le gagnant")
+    parser.add_argument("--space", default="large", choices=sorted(SPACES),
+                        help="'large' explore tout, 'focus' resserre autour de la "
+                             "geometrie qui survit aux tendances")
     args = parser.parse_args(argv)
+
+    global SPACE
+    SPACE = SPACES[args.space]
+    print(f"Espace de recherche : {args.space} "
+          f"({len(SPACE)} parametres, "
+          f"{__import__('math').prod(len(v) for v in SPACE.values()):,} combinaisons)")
 
     rng = random.Random(args.seed)
     started = time.time()
