@@ -5,7 +5,7 @@ la même logique :
 
 | | Fichier | Quand l'utiliser |
 |---|---|---|
-| **Bot Python** | `run.py` + `grid_bot/` | pilotage du terminal via l'API `MetaTrader5`, mode papier, backtest, journalisation, tests |
+| **Bot Python** | `run.py` + `grid_bot/` | pilotage du terminal via l'API `MetaTrader5` (Windows, ou Linux via Wine et un pont RPyC), mode papier, backtest, journalisation, tests |
 | **EA MQL5** | `mql5/GridScalperBTC.mq5` | exécution native dans MT5, testeur de stratégie intégré, VPS MetaQuotes |
 
 ---
@@ -72,21 +72,57 @@ broker tronque les commentaires, le palier est retrouvé par proximité de prix
 
 ## Installation (bot Python)
 
-Le paquet `MetaTrader5` **n'existe que sous Windows** et parle au terminal MT5
-installé sur la **même machine**.
+### Windows
 
 ```bash
 git clone <ce-dépôt>
 cd mt5-grid-bot
-python -m venv .venv && .venv\Scripts\activate     # Windows
+python -m venv .venv && .venv\Scripts\activate
 pip install -r requirements.txt
 copy config.example.json config.json
 ```
 
-Dans le terminal MT5 : **Outils → Options → Expert Advisors → Autoriser le trading
-algorithmique**. Vérifie aussi le libellé exact du symbole dans l'Observation du
-marché : selon le broker c'est `BTCUSD`, `BTCUSD.a`, `BTCUSD_raw`, `Bitcoin`…
-et il faut le reporter dans `config.json`.
+### Linux
+
+MetaTrader 5 tourne très bien sous Linux, via Wine. Le seul point de friction
+est le paquet Python : MetaQuotes ne publie que des wheels `win_amd64` (vérifié
+sur PyPI — les neuf fichiers de la dernière version sont tous `win_amd64`). La
+solution standard est un pont : un Python *Windows* tourne sous Wine à côté du
+terminal et expose l'API via un serveur RPyC ; côté Linux, `pymt5linux`
+(Python ≥ 3.13) ou `mt5linux` s'y connecte et fournit **exactement les mêmes
+méthodes et les mêmes constantes**. Le bot les accepte sans modification.
+
+```bash
+# 1. Terminal MT5 sous Wine (script officiel MetaQuotes, ou installation manuelle)
+sudo apt install wine64
+wget https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe
+wine mt5setup.exe
+
+# 2. Python Windows + MetaTrader5 + serveur RPyC, sous le même préfixe Wine
+wine python-3.11.x-amd64.exe        # depuis python.org
+wine python -m pip install MetaTrader5 rpyc
+
+# 3. Côté Linux : le bot et le client du pont
+pip install -r requirements.txt
+```
+
+Lancer le serveur côté Wine, puis renseigner dans la configuration :
+
+```json
+"terminal": { "bridge_host": "127.0.0.1", "bridge_port": 18812 }
+```
+
+`bridge_host` vide (le défaut) signifie « paquet natif » : c'est le
+comportement sous Windows. Dès qu'il est renseigné, le bot passe par le pont.
+Si le pont n'est pas installé ou que le serveur ne répond pas, le message
+d'erreur nomme l'hôte, le port et ce qu'il faut vérifier.
+
+### Dans les deux cas
+
+Dans le terminal MT5 : **Outils → Options → Expert Advisors → Autoriser le
+trading algorithmique**. Vérifie aussi le libellé exact du symbole dans
+l'Observation du marché : selon le broker c'est `BTCUSD`, `BTCUSD.a`,
+`BTCUSD_raw`, `Bitcoin`… et il faut le reporter dans `config.json`.
 
 ## Démarrage
 
@@ -328,6 +364,9 @@ dépendance externe, et il tourne sur un VPS MetaQuotes. Il est aussi utilisable
 dans le **testeur de stratégie** de MT5, qui modélise le spread et l'exécution
 bien mieux que le backtest Python.
 
+Sous Linux, l'EA est même le chemin le plus simple : le terminal sous Wine
+exécute l'EA nativement, sans Python ni pont RPyC.
+
 Différence assumée : l'EA ne persiste pas son état sur disque. Après un
 redémarrage, il retrouve ses positions par numéro magique et reconstruit sa
 grille, mais son pic d'equity repart du niveau courant.
@@ -340,12 +379,12 @@ grille, mais son pic d'equity repart du niveau courant.
 python -m unittest discover -s tests -v
 ```
 
-45 tests couvrent les indicateurs, la validation de configuration, la géométrie
+51 tests couvrent les indicateurs, la validation de configuration, la géométrie
 de la grille (paliers, TP/SL, ordres qui ne croisent jamais le marché), le
 dimensionnement, les garde-fous (drawdown terminal vs journalier, spread, plafond
 de positions, basket TP, fenêtres de session), le stop temporel, le refus des
 comptes réels en mode démo, le réalisme statistique du générateur de marchés,
-et des scénarios de bout en bout sur le simulateur.
+la sélection du pont Linux, et des scénarios de bout en bout sur le simulateur.
 
 Aucune dépendance de test : bibliothèque standard uniquement.
 
@@ -374,7 +413,7 @@ mt5-grid-bot/
 │   ├── logger.py             # journalisation console + fichier rotatif
 │   └── bot.py                # assemblage et boucle principale
 ├── mql5/GridScalperBTC.mq5   # Expert Advisor natif
-└── tests/                    # 45 tests, bibliothèque standard uniquement
+└── tests/                    # 51 tests, bibliothèque standard uniquement
 ```
 
 Le moteur ne parle qu'à l'interface `Broker` : la même logique tourne sur le

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 from datetime import datetime, timezone
 
@@ -24,23 +25,68 @@ TIMEFRAMES = {
 }
 
 
-def import_mt5():
-    """Importe le paquet MetaTrader5 avec un message clair s'il manque."""
+BRIDGE_MODULES = ("pymt5linux", "mt5linux")
+
+
+def import_mt5(cfg: Config | None = None):
+    """Retourne l'API MetaTrader5, native ou via le pont Linux.
+
+    Deux chemins, tous deux pleinement supportes :
+
+    * **Windows** — le paquet officiel `MetaTrader5` (seuls des wheels
+      `win_amd64` sont publies) parle au terminal local. Rien a configurer.
+    * **Linux** — le terminal MT5 tourne sous Wine, avec un Python Windows qui
+      expose l'API via un serveur RPyC ; cote Linux, `pymt5linux` ou `mt5linux`
+      s'y connecte et fournit un objet dont les methodes et les constantes sont
+      identiques a celles du paquet natif. Il suffit de renseigner
+      `terminal.bridge_host` dans la configuration.
+    """
     try:
         import MetaTrader5 as mt5  # noqa: N813
-    except ImportError as exc:  # pragma: no cover - depend de la plateforme
+        return mt5
+    except ImportError:
+        pass
+
+    host = cfg.terminal.bridge_host if cfg else ""
+    if not host:
         raise BrokerError(
-            "Le paquet MetaTrader5 est introuvable. Il n'existe que sous Windows, "
-            "sur la machine ou tourne le terminal MT5 (pip install MetaTrader5)."
-        ) from exc
-    return mt5
+            "Le paquet MetaTrader5 n'a pas pu etre importe : seuls des wheels "
+            "Windows sont publies sur PyPI.\n"
+            "  - Sous Windows : pip install MetaTrader5\n"
+            "  - Sous Linux   : MT5 tourne sous Wine et expose son API via un "
+            "serveur RPyC. Installe `pip install pymt5linux` (ou `mt5linux`), "
+            "lance le serveur cote Wine, puis renseigne terminal.bridge_host "
+            "dans ta configuration (voir la section Linux du README)."
+        )
+
+    errors = []
+    for name in BRIDGE_MODULES:
+        try:
+            module = importlib.import_module(name)
+        except ImportError as exc:
+            errors.append(f"{name}: {exc}")
+            continue
+        port = cfg.terminal.bridge_port
+        try:
+            return module.MetaTrader5(host=host, port=port)
+        except Exception as exc:  # noqa: BLE001 - reseau, Wine, serveur eteint...
+            raise BrokerError(
+                f"Connexion au pont {name} sur {host}:{port} impossible : {exc}. "
+                "Verifie que le terminal MT5 tourne sous Wine et que le serveur "
+                "RPyC est demarre de son cote."
+            ) from exc
+
+    raise BrokerError(
+        f"terminal.bridge_host vaut '{host}' mais aucun pont n'est installe. "
+        f"Fais `pip install pymt5linux` (ou `mt5linux`). Details : {'; '.join(errors)}"
+    )
 
 
 class MT5Broker(Broker):
     def __init__(self, cfg: Config, logger: logging.Logger) -> None:
         self.cfg = cfg
         self.log = logger
-        self.mt5 = import_mt5()
+        self.mt5 = import_mt5(cfg)
         self.symbol = cfg.symbol
         self._spec: SymbolSpec | None = None
         self._filling_pending: int | None = None

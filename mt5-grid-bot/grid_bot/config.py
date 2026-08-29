@@ -20,6 +20,10 @@ class TerminalConfig:
     password: str = ""
     server: str = ""
     timeout_ms: int = 30_000
+    # Pont Linux : hote/port du serveur RPyC qui expose MetaTrader5 depuis Wine
+    # (paquet pymt5linux ou mt5linux). Laisser vide sous Windows.
+    bridge_host: str = ""
+    bridge_port: int = 18812
 
 
 @dataclass

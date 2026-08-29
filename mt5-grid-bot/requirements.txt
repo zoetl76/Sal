@@ -1,3 +1,12 @@
-# Bot grid scalper BTC pour MetaTrader 5
-# Le paquet MetaTrader5 est Windows-only (le terminal MT5 doit tourner sur la meme machine).
+# Bot grid scalper BTC pour MetaTrader 5.
+#
+# Windows : le paquet officiel MetaTrader5 parle au terminal local.
+#           Seuls des wheels win_amd64 sont publies sur PyPI.
 MetaTrader5>=5.0.45 ; sys_platform == "win32"
+#
+# Linux   : le terminal MT5 tourne sous Wine, avec un Python Windows qui expose
+#           l'API via un serveur RPyC. Cote Linux, ce pont s'y connecte et
+#           fournit exactement les memes methodes et constantes.
+#           Renseigner ensuite terminal.bridge_host dans la configuration.
+pymt5linux ; sys_platform == "linux" and python_version >= "3.13"
+mt5linux ; sys_platform == "linux" and python_version < "3.13"
