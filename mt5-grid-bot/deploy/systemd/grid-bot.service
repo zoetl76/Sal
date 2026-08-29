@@ -1,0 +1,23 @@
+[Unit]
+Description=Grid Scalper BTC
+After=gridbot-mt5-bridge.service
+Requires=gridbot-mt5-bridge.service
+
+[Service]
+Type=simple
+User=@APP_USER@
+WorkingDirectory=@APP_DIR@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@APP_DIR@/.venv/bin/python @APP_DIR@/run.py --config @APP_DIR@/config.json --live
+Restart=on-failure
+RestartSec=30
+# Ne pas relancer en boucle : si le bot echoue 3 fois en 10 minutes, il y a une
+# vraie cause (compte, symbole, marge) et redemarrer ne la corrigera pas.
+StartLimitIntervalSec=600
+StartLimitBurst=3
+# Arret propre : run.py ferme sa boucle sur SIGTERM et sauvegarde son etat.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

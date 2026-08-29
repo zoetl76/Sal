@@ -106,6 +106,10 @@ wine python -m pip install MetaTrader5 rpyc
 pip install -r requirements.txt
 ```
 
+Sur un VPS, `deploy/install-vps.sh` automatise tout ce qui précède — voir
+`deploy/README.md`, qui explique aussi pourquoi l'EA MQL5 y est souvent le
+meilleur choix.
+
 Lancer le serveur côté Wine, puis renseigner dans la configuration :
 
 ```json
@@ -412,6 +416,7 @@ mt5-grid-bot/
 │   ├── config.py             # chargement et validation
 │   ├── logger.py             # journalisation console + fichier rotatif
 │   └── bot.py                # assemblage et boucle principale
+├── deploy/                   # installation VPS (Wine, MT5, systemd, sécurité)
 ├── mql5/GridScalperBTC.mq5   # Expert Advisor natif
 └── tests/                    # 51 tests, bibliothèque standard uniquement
 ```
@@ -432,7 +437,8 @@ compte réel, en mode papier et en backtest, sans branche conditionnelle.
 - [ ] `martingale_factor` à `1.0`
 - [ ] `lot` et `max_total_lots` compatibles avec ton levier et ta marge
 - [ ] `max_spread` calibré sur le spread réel observé de ton broker sur BTC
-- [ ] Terminal sur un VPS, ou machine qui ne s'éteint pas
+- [ ] Terminal sur un VPS, ou machine qui ne s'éteint pas (voir `deploy/`)
+- [ ] Si pont RPyC : `ss -tlnp | grep 18812` affiche bien `127.0.0.1`, pas `0.0.0.0`
 - [ ] Tu sais lancer `flatten` en moins de dix secondes
 
 Rien de ce qui précède ne constitue un conseil en investissement.

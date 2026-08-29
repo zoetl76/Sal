@@ -1,0 +1,23 @@
+[Unit]
+Description=Pont RPyC exposant l'API MetaTrader 5 depuis Wine
+After=gridbot-mt5-terminal.service
+Requires=gridbot-mt5-terminal.service
+
+[Service]
+Type=simple
+User=@APP_USER@
+Environment=HOME=/home/@APP_USER@
+Environment=WINEPREFIX=@WINEPREFIX@
+Environment=DISPLAY=@DISPLAY@
+Environment=WINEDEBUG=-all
+# ATTENTION : un serveur RPyC "classic" execute du code arbitraire pour qui
+# s'y connecte. --host 127.0.0.1 n'est pas une preference, c'est la seule
+# valeur acceptable sur une machine joignable depuis Internet.
+ExecStart=/usr/bin/wine @PY_WIN@ -m rpyc.cli.rpyc_classic --host 127.0.0.1 --port @BRIDGE_PORT@
+Restart=always
+RestartSec=15
+# Le terminal doit avoir fini de demarrer avant que le pont serve.
+ExecStartPre=/bin/sleep 20
+
+[Install]
+WantedBy=multi-user.target
