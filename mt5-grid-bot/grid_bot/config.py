@@ -40,6 +40,11 @@ class GridConfig:
     tp_mult: float = 1.0            # TP de chaque position = pas * tp_mult
     sl_mult: float = 0.0            # 0 = pas de SL individuel (filet global uniquement)
     rearm_cooldown_sec: int = 30    # delai avant de re-armer un palier apres un TP
+    # Stop temporel : age maximal d'une position, en secondes (0 = desactive).
+    # C'est le garde-fou central d'une grille : le risque de ruine croit avec le
+    # temps passe expose, pas avec le nombre de trades. Borner l'age des
+    # positions borne l'accumulation en tendance.
+    max_position_age_sec: int = 0
     reanchor_mult: float = 1.5      # re-centrage si |prix - ancre| > pas*levels*ce_facteur
     trail_grid: bool = False        # etendre la grille dans le sens du mouvement
 
@@ -136,6 +141,8 @@ class Config:
             raise ConfigError("grid.step_fixed doit etre > 0")
         if g.tp_mult <= 0:
             raise ConfigError("grid.tp_mult doit etre > 0")
+        if g.max_position_age_sec < 0:
+            raise ConfigError("grid.max_position_age_sec doit etre >= 0")
         if g.sl_mult and g.sl_mult <= g.tp_mult:
             raise ConfigError("grid.sl_mult doit etre > grid.tp_mult (sinon le SL saute avant le TP)")
         if s.mode not in ("fixed", "risk"):

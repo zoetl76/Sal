@@ -299,3 +299,51 @@ class TestSimulationRoundTrip(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestTimeStop(unittest.TestCase):
+    """Le stop temporel borne l'accumulation en tendance."""
+
+    def _run(self, max_age_sec: int) -> tuple[int, float, float]:
+        cfg = make_config(**{
+            "grid.levels": 6, "grid.rearm_cooldown_sec": 0,
+            "grid.max_position_age_sec": max_age_sec,
+            "risk.max_positions": 6, "risk.max_total_lots": 9.0,
+            "risk.max_net_lots": 9.0, "risk.max_drawdown_pct": 99.0,
+            "risk.daily_loss_pct": 99.0,
+        })
+        t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        bars, price = [], 60_000.0
+        for i in range(400):                       # baisse continue : le pire cas
+            price -= 15.0
+            bars.append(Bar(time=t0 + timedelta(minutes=i), open=price + 15,
+                            high=price + 15, low=price, close=price))
+        broker = SimBroker(SPEC, bars, balance=100_000.0, spread=10.0, magic=cfg.magic)
+        engine = GridEngine(cfg, broker, QUIET)
+        worst_floating = 0.0
+        for bar in bars:
+            broker.feed(bar)
+            engine.cycle()
+            worst_floating = min(worst_floating, broker.core.floating(broker.tick()))
+        return len(broker.core.closed), worst_floating, broker.core.equity(broker.tick())
+
+    def test_time_stop_closes_stale_positions(self):
+        trades_without, _, _ = self._run(0)
+        trades_with, _, _ = self._run(30 * 60)
+        self.assertGreater(trades_with, trades_without,
+                           "le stop temporel doit produire des clotures supplementaires")
+
+    def test_time_stop_limits_floating_loss(self):
+        _, worst_without, _ = self._run(0)
+        _, worst_with, _ = self._run(30 * 60)
+        self.assertGreater(worst_with, worst_without,
+                           "le flottant au pire moment doit etre moins negatif")
+
+    def test_disabled_by_default(self):
+        self.assertEqual(Config().grid.max_position_age_sec, 0)
+
+    def test_negative_age_is_rejected(self):
+        cfg = Config()
+        cfg.grid.max_position_age_sec = -1
+        with self.assertRaises(ConfigError):
+            cfg.validate()

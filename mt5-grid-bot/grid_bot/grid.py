@@ -126,6 +126,7 @@ class GridEngine:
         self._track_cooldowns(positions, orders, now)
         self._update_anchor(tick, positions, orders)
         self._ensure_take_profits(positions)
+        positions = self._apply_time_stop(positions, now)
 
         if verdict.can_open:
             self._reprice_orders(orders, tick)
@@ -387,6 +388,31 @@ class GridEngine:
                 self.log.info("Position #%s sans TP/SL -> pose TP=%.2f SL=%.2f",
                               pos.ticket, tp, sl)
                 self.broker.set_tp_sl(pos, tp, sl or pos.sl)
+
+    def _apply_time_stop(self, positions: list[Position],
+                         now: datetime) -> list[Position]:
+        """Ferme les positions trop vieilles et renvoie celles qui restent.
+
+        Une grille perd parce qu'elle garde indefiniment des positions a
+        contresens en attendant un retour qui n'arrive pas. Couper au bout d'un
+        temps fixe transforme une perte non bornee en une suite de petites
+        pertes connues.
+        """
+        max_age = self.cfg.grid.max_position_age_sec
+        if max_age <= 0:
+            return positions
+
+        alive: list[Position] = []
+        for pos in positions:
+            age = (now - pos.time).total_seconds()
+            if age < max_age:
+                alive.append(pos)
+                continue
+            self.log.info("Stop temporel sur #%s (%s ouvert depuis %.0f min, %+.2f)",
+                          pos.ticket, pos.comment, age / 60.0, pos.profit)
+            if not self.broker.close_position(pos):
+                alive.append(pos)
+        return alive
 
     def _cancel_all_orders(self, orders: list[PendingOrder]) -> None:
         for order in orders:
