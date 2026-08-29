@@ -4,7 +4,7 @@
 Sources de bougies :
     --csv data/btc_m5.csv        colonnes : time,open,high,low,close
     --from-mt5                   telecharge l'historique via le terminal MT5 (Windows)
-    --synthetic 20000            marche aleatoire, pour verifier la mecanique du bot
+    --synthetic 20000            marche simule realiste (voir --scenario)
 
 Le backtest rejoue exactement le meme `GridEngine` que le mode reel : ce qui est
 teste ici est le code qui tradera, pas une reimplementation approchee.
@@ -20,15 +20,15 @@ from __future__ import annotations
 import argparse
 import csv
 import math
-import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from grid_bot.broker import Bar, SymbolSpec
 from grid_bot.config import Config, ConfigError
 from grid_bot.grid import GridEngine
 from grid_bot.logger import setup_logger
+from grid_bot.market import SCENARIOS, describe, generate
 from grid_bot.sim import SimBroker
 
 
@@ -74,25 +74,6 @@ def load_mt5(cfg: Config, timeframe: str, count: int) -> list[Bar]:
         return broker.rates(timeframe, count)
     finally:
         broker.shutdown()
-
-
-def synthetic(count: int, start: float = 65_000.0, minutes: int = 5,
-              drift_per_bar: float = 0.0, vol_pct: float = 0.0015,
-              seed: int = 42) -> list[Bar]:
-    """Marche aleatoire log-normale : sert a valider la mecanique, pas la rentabilite."""
-    rng = random.Random(seed)
-    t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    price = start
-    bars: list[Bar] = []
-    for i in range(count):
-        ret = rng.gauss(drift_per_bar, vol_pct)
-        close = price * math.exp(ret)
-        high = max(price, close) * (1 + abs(rng.gauss(0, vol_pct / 2)))
-        low = min(price, close) * (1 - abs(rng.gauss(0, vol_pct / 2)))
-        bars.append(Bar(time=t0 + timedelta(minutes=minutes * i),
-                        open=price, high=high, low=low, close=close))
-        price = close
-    return bars
 
 
 # --------------------------------------------------------------------- #
@@ -201,8 +182,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commission", type=float, default=0.0,
                         help="commission aller-retour par lot, devise du compte")
     parser.add_argument("--seed", type=int, default=42, help="graine pour --synthetic")
-    parser.add_argument("--drift", type=float, default=0.0,
-                        help="derive par bougie pour --synthetic (ex 0.0002 = marche haussier)")
+    parser.add_argument("--scenario", default="mixed", choices=SCENARIOS,
+                        help="regime de marche simule pour --synthetic")
     # Specification contractuelle du symbole (a aligner sur ton broker).
     parser.add_argument("--digits", type=int, default=2)
     parser.add_argument("--contract-size", type=float, default=1.0)
@@ -230,7 +211,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.from_mt5:
         bars = load_mt5(cfg, args.timeframe, args.count)
     else:
-        bars = synthetic(args.synthetic, drift_per_bar=args.drift, seed=args.seed)
+        bars = generate(args.scenario, args.synthetic, seed=args.seed)
+        stats = describe(bars)
+        print(f"Marche simule '{args.scenario}' (graine {args.seed}) : "
+              f"variation {stats['variation_pct']:+.1f} %, "
+              f"volatilite annualisee {stats['vol_annualisee_pct']:.0f} %, "
+              f"kurtosis {stats['kurtosis']:.1f}")
 
     if len(bars) < 100:
         print("historique insuffisant (moins de 100 bougies)", file=sys.stderr)
