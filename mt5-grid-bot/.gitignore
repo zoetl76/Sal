@@ -7,3 +7,6 @@ data/
 __pycache__/
 *.py[cod]
 .venv/
+
+# Sortie generee par optimize.py
+config.optimized.json

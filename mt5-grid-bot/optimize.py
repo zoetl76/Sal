@@ -191,9 +191,9 @@ class Score:
         return {k: statistics.fmean(v) for k, v in out.items()}
 
 
-def run_once(job: tuple) -> RunResult:
-    params, scenario, seed, bars_count, balance, spread = job
-    cfg = apply_params(Config(), params)
+def run_backtest(cfg: Config, scenario: str, seed: int, bars_count: int,
+                 balance: float, spread: float) -> RunResult:
+    """Un backtest, du meme moteur que le mode reel. Reutilise par validate.py."""
     bars = generate(scenario, bars_count, seed=seed)
     broker = SimBroker(SPEC, bars, balance=balance, spread=spread, magic=cfg.magic)
     engine = GridEngine(cfg, broker, QUIET)
@@ -217,6 +217,12 @@ def run_once(job: tuple) -> RunResult:
         trades=len(broker.core.closed),
         ruined=engine.risk.state.halt_kind == "terminal",
     )
+
+
+def run_once(job: tuple) -> RunResult:
+    params, scenario, seed, bars_count, balance, spread = job
+    cfg = apply_params(Config(), params)
+    return run_backtest(cfg, scenario, seed, bars_count, balance, spread)
 
 
 def evaluate(pool: ProcessPoolExecutor, candidates: list[dict], scenarios: list[str],
