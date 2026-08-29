@@ -73,6 +73,17 @@ class MT5Broker(Broker):
         acc = self.mt5.account_info()
         if acc is None:
             raise BrokerError(f"account_info() a echoue: {self.mt5.last_error()}")
+        if self.cfg.require_demo_account:
+            # ACCOUNT_TRADE_MODE_REAL = 2 ; demo = 0, concours = 1.
+            if acc.trade_mode == self.mt5.ACCOUNT_TRADE_MODE_REAL:
+                raise BrokerError(
+                    f"require_demo_account est actif et le compte {acc.login} "
+                    f"({acc.server}) est un compte REEL. Connecte le terminal a un "
+                    "compte de demonstration, ou passe require_demo_account a false "
+                    "en connaissance de cause."
+                )
+            self.log.info("Compte de demonstration confirme (%s).", acc.server)
+
         if not acc.trade_allowed and not self.cfg.dry_run:
             raise BrokerError(
                 "le trading algorithmique est desactive cote terminal ou cote compte "

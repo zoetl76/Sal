@@ -14,22 +14,29 @@ la même logique :
 
 Une grille **n'a pas de stop loss par construction**. Elle gagne un peu, très
 souvent, dans un marché qui oscille — et rend tout d'un coup dans une tendance
-soutenue. C'est exactement ce que montre le backtest fourni :
+soutenue.
 
-```
-Marché sans direction (5 000 bougies)   →  +3,09 %   314 trades   100 % gagnants   DD 1,8 %
-Tendance haussière soutenue             →  −15,09 %   24 trades    21 % gagnants   DD 15,1 %
-```
+Les paramètres livrés ici sont le produit d'environ **12 000 backtests** (voir
+« Ce que la recherche de paramètres a montré » plus bas). Voici ce qu'ils
+donnent sur le jeu de validation final — 16 marchés simulés jamais utilisés
+pour choisir quoi que ce soit, 6 régimes, ~70 jours chacun, compte de 2 000 $,
+lot 0,01 :
 
-Le taux de réussite de 100 % dans le premier cas n'est pas une performance : c'est
-la signature d'une grille. Le seul chiffre qui compte est le **drawdown maximum**,
-et il est ici plafonné par les garde-fous — pas par la stratégie.
+| | Résultat |
+|---|---|
+| Rendement moyen | **+3,74 %** |
+| Rendement médian | +0,70 % |
+| Runs gagnants | 51 % |
+| Pire run | −15,1 % (le stop de drawdown) |
+| **Runs terminés par le stop de drawdown** | **36,5 %** |
 
-Ce bot est conçu pour que la perte soit **bornée et choisie** (`max_drawdown_pct`),
-pas pour être rentable par défaut. Teste-le en papier, puis en démo, longtemps,
-avant d'envisager le moindre euro réel.
+Lis la dernière ligne deux fois. **Plus d'un marché sur trois se termine par
+l'arrêt d'urgence à −15 %.** Ce n'est pas un défaut de réglage : c'est la
+meilleure configuration trouvée après une recherche systématique, et rien de ce
+qui a été testé ne fait disparaître ce chiffre.
 
----
+Ce bot est conçu pour que la perte soit **bornée et choisie**
+(`max_drawdown_pct`), pas pour être rentable par défaut.
 
 ## Comment ça marche
 
@@ -97,6 +104,53 @@ par défaut, et l'étape à ne pas sauter.
 
 ---
 
+## Lancer en démo
+
+Le compte de démonstration est l'étape obligatoire entre le mode papier et le
+réel : mêmes serveurs, mêmes spreads, mêmes rejets d'ordres, argent fictif.
+
+```bash
+python run.py --config config.demo.json --live
+```
+
+`config.demo.json` diffère du défaut sur deux points seulement :
+
+- `dry_run: false` — les ordres partent vraiment vers le serveur du broker ;
+- `require_demo_account: true` — **le bot refuse de démarrer si le terminal est
+  connecté à un compte réel**, et le dit explicitement. C'est le garde-fou qui
+  évite l'erreur de compte à 2 h du matin.
+
+Procédure complète :
+
+1. Ouvrir un compte démo chez ton broker, se connecter avec dans MT5.
+2. **Outils → Options → Expert Advisors → Autoriser le trading algorithmique.**
+3. Vérifier le libellé exact du symbole BTC dans l'Observation du marché et le
+   reporter dans `config.demo.json` (`BTCUSD`, `BTCUSD.a`, `Bitcoin`…).
+4. Vérifier le spread réel observé sur BTC chez ce broker, et ajuster
+   `risk.max_spread` en conséquence (60 $ par défaut).
+5. `python run.py --config config.demo.json status` — doit afficher le compte,
+   le prix et « Compte de démonstration confirmé ».
+6. `python run.py --config config.demo.json --live`, puis taper `OUI`.
+
+Pendant la démo, à surveiller dans `logs/grid_bot.log` :
+
+| Ligne | Ce qu'elle dit |
+|---|---|
+| `Palier B2 armé` | un ordre limite a bien été accepté par le broker |
+| `Pas de grille : X -> Y` | l'ATR a bougé, la grille s'est adaptée |
+| `Paliers libérés` | un TP a été touché — c'est un scalp encaissé |
+| `bloqué: spread ...` | le spread dépasse la limite, aucun ordre n'est posé |
+| `ARRET RISQUE` | une limite a sauté, tout est fermé |
+
+Commandes utiles à chaud : `status` (état complet), `flatten` (tout fermer
+immédiatement), `reset` (lever un arrêt terminal).
+
+Laisse tourner **au moins deux semaines** avant de tirer la moindre conclusion :
+sur 70 jours simulés, plus d'un tiers des marchés finissent au stop, et deux
+semaines ne suffisent pas à voir ça arriver.
+
+---
+
 ## Configuration
 
 Tout est dans `config.json` (copie de `config.example.json`). Une clé inconnue
@@ -110,16 +164,17 @@ plutôt que de trader avec un paramètre silencieusement ignoré.
 | Clé | Défaut | Rôle |
 |---|---|---|
 | `mode` | `both` | `both` / `long` / `short` / `trend` (direction imposée par l'EMA) |
-| `levels` | `6` | paliers de chaque côté de l'ancre |
+| `levels` | `14` | paliers de chaque côté de l'ancre |
 | `step_mode` | `atr` | `atr` (adaptatif) ou `fixed` |
 | `step_fixed` | `250` | pas fixe si `step_mode: fixed` |
-| `atr_timeframe` / `atr_period` / `atr_mult` | `M15` / `14` / `0.5` | pas = ATR × facteur |
-| `step_min` / `step_max` | `100` / `1500` | bornes du pas |
-| `tp_mult` | `1.0` | TP = pas × ce facteur |
-| `sl_mult` | `0.0` | SL individuel (0 = aucun). Doit être **> `tp_mult`** |
-| `rearm_cooldown_sec` | `30` | délai avant de réarmer un palier qui vient de prendre son TP |
+| `atr_timeframe` / `atr_period` / `atr_mult` | `M15` / `14` / `1.0` | pas = ATR × facteur |
+| `step_min` / `step_max` | `200` / `800` | bornes du pas |
+| `tp_mult` | `1.8` | TP = pas × ce facteur |
+| `sl_mult` | `8.0` | SL individuel (0 = aucun). Doit être **> `tp_mult`** |
+| `rearm_cooldown_sec` | `300` | délai avant de réarmer un palier qui vient de prendre son TP |
 | `reanchor_mult` | `1.5` | seuil de re-centrage de la grille |
-| `trail_grid` | `false` | laisser la grille suivre le prix **même avec des positions ouvertes** (agressif) |
+| `trail_grid` | `true` | laisser la grille suivre le prix **même avec des positions ouvertes** |
+| `max_position_age_sec` | `0` | stop temporel, 0 = désactivé. Le calibrage montre qu'il n'aide pas ici (voir plus bas) |
 
 ### `sizing`
 
@@ -135,8 +190,8 @@ plutôt que de trader avec un paramètre silencieusement ignoré.
 
 | Clé | Défaut | Effet quand la limite est franchie |
 |---|---|---|
-| `max_positions` | `10` | plafond positions + ordres en attente (bloque l'ouverture) |
-| `max_total_lots` / `max_net_lots` | `0.20` / `0.15` | exposition brute / nette (bloque l'ouverture) |
+| `max_positions` | `4` | plafond positions + ordres en attente. **Le paramètre le plus important du fichier** : c'est lui qui borne l'accumulation |
+| `max_total_lots` / `max_net_lots` | `0.042` / `0.016` | exposition brute / nette (bloque l'ouverture) |
 | `max_spread` | `60` | au-delà, aucun nouvel ordre — le spread BTC explose sur les news |
 | `max_drawdown_pct` | `15` | **arrêt terminal** : tout est fermé, reprise seulement via `reset` |
 | `daily_loss_pct` | `5` | **arrêt journalier** : tout est fermé, reprise automatique le lendemain (UTC) |
@@ -191,6 +246,76 @@ grille est toujours plus flatteur que le réel.
 
 ---
 
+## Ce que la recherche de paramètres a montré
+
+`optimize.py` fait une recherche aléatoire en trois étapes (exploration,
+affinage, validation sur graines inédites), chaque candidat étant jugé sur
+plusieurs régimes de marché. `validate.py` compare des configurations sur les
+mêmes marchés, appariées à la graine près.
+
+```bash
+python optimize.py --space focus --candidates 150 --bars 10000 --bars-final 20000
+python validate.py config.example.json config.demo.json --seeds 201-216 --bars 20000
+```
+
+Les marchés de test viennent de `grid_bot/market.py` : volatilité GARCH,
+innovations de Student (queues épaisses), régimes markoviens. Volatilité
+annualisée 47–92 %, kurtosis 5–11 — les propriétés statistiques du BTC. **Ce ne
+sont pas de vraies données** : c'est un banc d'essai pour vérifier qu'un
+réglage survit à tous les régimes, pas une prévision de rentabilité.
+
+### Le seul résultat qui compte : la ruine croît avec le temps d'exposition
+
+Même configuration, même jeu de graines, seul l'horizon change :
+
+| Durée simulée | 6 000 bougies (~21 j) | 10 000 (~35 j) | 20 000 (~70 j) |
+|---|---|---|---|
+| Runs terminés au stop | 4,2 % | 8,3 % | **30,6 %** |
+
+Le nombre de trades ne change presque pas ; c'est le **temps passé en position**
+qui tue. Une grille échange du temps contre une perte différée.
+
+### Ce qui a été essayé pour corriger ça — et n'a pas marché
+
+| Piste | Résultat | Verdict |
+|---|---|---|
+| **Stop temporel** (fermer une position après N heures) | 2 h : +33 % ruine · 12 h : +40 % · 48 h : +33 % | pire que sans, à toutes les durées |
+| **Filtre de tendance EMA** (`mode: trend`) | 43,8 % ruine contre 31,2 % en neutre | dégrade tout : te met du mauvais côté *après* le mouvement |
+| **Basket SL serré** (−3 % au lieu de −15 %) | 37,5 % ruine contre 31,2 % | coupe trop tôt, rate les retours |
+| **Budget de risque réduit** (8 % au lieu de 15 %) | **75 %** de ruine | resserrer le stop le fait toucher plus souvent |
+| **Long seul** | survit au haussier (25 %) mais meurt au krach (100 %) | échange un risque contre un autre |
+| **Short seul** | survit au baissier (0 %) mais meurt au haussier (100 %) | idem, en miroir |
+
+Le stop temporel est resté dans le code (`grid.max_position_age_sec`, **désactivé
+par défaut**) parce qu'il peut servir à d'autres réglages, mais le calibrage est
+sans appel : il ne sauve rien ici.
+
+### Rendement par régime de la configuration livrée
+
+Validation finale, 16 graines inédites, 20 000 bougies :
+
+| Régime | Rendement moyen | Runs au stop |
+|---|---|---|
+| `range` (oscillant) | **+26,9 %** | 0 % |
+| `mixed` (le plus réaliste) | **+7,9 %** | 25 % |
+| `chop` (volatil sans direction) | +4,8 % | 38 % |
+| `crash` | −0,2 % | 44 % |
+| `bear` | −6,9 % | 19 % |
+| `bull` (haussier soutenu) | **−10,0 %** | **94 %** |
+
+La grille est un pari sur l'absence de tendance. En range elle est excellente,
+en tendance soutenue elle est condamnée — et aucun réglage ne change ça.
+
+### La configuration par défaut a été remplacée
+
+La première version livrée (pas serré à 100 $, 6 paliers, 10 positions, TP à
+1 pas) atteignait **80 % de ruine** sur ce banc d'essai. Elle a été remplacée par
+la géométrie validée : pas larges (ATR × 1,0, minimum 200 $), **4 positions
+simultanées maximum**, TP à 1,8 pas, SL à 8 pas, 300 s de cooldown. Moins de
+trades, beaucoup moins de ruine.
+
+---
+
 ## Version MQL5 (Expert Advisor)
 
 1. Copier `mql5/GridScalperBTC.mq5` dans
@@ -215,11 +340,12 @@ grille, mais son pic d'equity repart du niveau courant.
 python -m unittest discover -s tests -v
 ```
 
-27 tests couvrent les indicateurs, la validation de configuration, la géométrie
+45 tests couvrent les indicateurs, la validation de configuration, la géométrie
 de la grille (paliers, TP/SL, ordres qui ne croisent jamais le marché), le
 dimensionnement, les garde-fous (drawdown terminal vs journalier, spread, plafond
-de positions, basket TP, fenêtres de session), et deux scénarios de bout en bout
-sur le simulateur.
+de positions, basket TP, fenêtres de session), le stop temporel, le refus des
+comptes réels en mode démo, le réalisme statistique du générateur de marchés,
+et des scénarios de bout en bout sur le simulateur.
 
 Aucune dépendance de test : bibliothèque standard uniquement.
 
@@ -230,8 +356,11 @@ Aucune dépendance de test : bibliothèque standard uniquement.
 ```
 mt5-grid-bot/
 ├── run.py                    # CLI : run / status / flatten / reset
-├── backtest.py               # backtest + génération de données synthétiques
-├── config.example.json       # configuration commentée dans ce README
+├── backtest.py               # backtest sur CSV, historique MT5 ou marché simulé
+├── optimize.py               # recherche de paramètres en 3 étapes + validation
+├── validate.py               # comparaison appariée de plusieurs configurations
+├── config.example.json       # défaut (mode papier), géométrie validée
+├── config.demo.json          # compte démo : ordres réels, compte réel refusé
 ├── grid_bot/
 │   ├── broker.py             # types communs + interface courtier
 │   ├── mt5_broker.py         # adaptateur MetaTrader 5 (réel)
@@ -239,12 +368,13 @@ mt5-grid-bot/
 │   ├── sim.py                # moteur d'exécution simulé (papier + backtest)
 │   ├── grid.py               # moteur de grille
 │   ├── risk.py               # garde-fous
+│   ├── market.py             # marchés simulés réalistes (GARCH, Student, régimes)
 │   ├── indicators.py         # ATR de Wilder, EMA
 │   ├── config.py             # chargement et validation
 │   ├── logger.py             # journalisation console + fichier rotatif
 │   └── bot.py                # assemblage et boucle principale
 ├── mql5/GridScalperBTC.mq5   # Expert Advisor natif
-└── tests/test_grid_bot.py
+└── tests/                    # 45 tests, bibliothèque standard uniquement
 ```
 
 Le moteur ne parle qu'à l'interface `Broker` : la même logique tourne sur le
@@ -254,9 +384,11 @@ compte réel, en mode papier et en backtest, sans branche conditionnelle.
 
 ## Checklist avant de passer en réel
 
+- [ ] Tu as accepté que **plus d'un marché sur trois** finit au stop de −15 %
 - [ ] Backtest sur au moins un cycle complet de marché (hausse, baisse, range)
 - [ ] Mode papier lancé plusieurs jours sur le compte réel visé
 - [ ] Compte démo du même broker, mêmes paramètres, au moins deux semaines
+      (`config.demo.json`, qui refuse de démarrer sur un compte réel)
 - [ ] `max_drawdown_pct` fixé à un montant que tu acceptes de perdre **en entier**
 - [ ] `martingale_factor` à `1.0`
 - [ ] `lot` et `max_total_lots` compatibles avec ton levier et ta marge

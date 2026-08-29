@@ -99,6 +99,9 @@ class Config:
     tag: str = "GS"                 # prefixe de commentaire des ordres (<= 4 caracteres)
     loop_interval_sec: float = 2.0
     dry_run: bool = True            # True = aucune commande envoyee au broker
+    # Refuse de demarrer si le compte connecte n'est pas un compte de demo.
+    # A laisser a true tant que la strategie n'a pas fait ses preuves chez toi.
+    require_demo_account: bool = False
     log_level: str = "INFO"
     log_file: str = "logs/grid_bot.log"
     state_file: str = "state/grid_state.json"

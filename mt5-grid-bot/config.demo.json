@@ -3,7 +3,7 @@
   "magic": 990101,
   "tag": "GS",
   "loop_interval_sec": 2.0,
-  "dry_run": true,
+  "dry_run": false,
   "log_level": "INFO",
   "log_file": "logs/grid_bot.log",
   "state_file": "state/grid_state.json",
@@ -67,5 +67,5 @@
     "trade_weekend": true,
     "flat_before_weekend": false
   },
-  "require_demo_account": false
+  "require_demo_account": true
 }

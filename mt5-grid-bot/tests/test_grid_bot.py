@@ -347,3 +347,16 @@ class TestTimeStop(unittest.TestCase):
         cfg.grid.max_position_age_sec = -1
         with self.assertRaises(ConfigError):
             cfg.validate()
+
+
+class TestDemoGuard(unittest.TestCase):
+    def test_disabled_by_default(self):
+        self.assertFalse(Config().require_demo_account)
+
+    def test_shipped_demo_config_enables_the_guard(self):
+        root = Path(__file__).resolve().parents[1]
+        cfg = Config.load(root / "config.demo.json")
+        self.assertTrue(cfg.require_demo_account,
+                        "config.demo.json doit refuser un compte reel")
+        self.assertEqual(cfg.sizing.martingale_factor, 1.0)
+        self.assertLessEqual(cfg.risk.max_drawdown_pct, 15.0)
