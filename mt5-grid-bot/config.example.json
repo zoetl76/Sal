@@ -1,0 +1,69 @@
+{
+  "symbol": "BTCUSD",
+  "magic": 990101,
+  "tag": "GS",
+  "loop_interval_sec": 2.0,
+  "dry_run": true,
+  "log_level": "INFO",
+  "log_file": "logs/grid_bot.log",
+  "state_file": "state/grid_state.json",
+  "deviation_points": 50,
+  "terminal": {
+    "path": "",
+    "login": 0,
+    "password": "",
+    "server": "",
+    "timeout_ms": 30000
+  },
+  "grid": {
+    "mode": "both",
+    "levels": 6,
+    "step_mode": "atr",
+    "step_fixed": 250.0,
+    "atr_timeframe": "M15",
+    "atr_period": 14,
+    "atr_mult": 0.5,
+    "step_min": 100.0,
+    "step_max": 1500.0,
+    "tp_mult": 1.0,
+    "sl_mult": 0.0,
+    "rearm_cooldown_sec": 30,
+    "reanchor_mult": 1.5,
+    "trail_grid": false
+  },
+  "trend": {
+    "enabled": false,
+    "timeframe": "H1",
+    "ema_fast": 50,
+    "ema_slow": 200
+  },
+  "sizing": {
+    "mode": "fixed",
+    "lot": 0.01,
+    "risk_per_level_pct": 0.25,
+    "lot_min": 0.0,
+    "lot_max": 0.05,
+    "martingale_factor": 1.0
+  },
+  "risk": {
+    "max_positions": 10,
+    "max_net_lots": 0.15,
+    "max_total_lots": 0.2,
+    "max_spread": 60.0,
+    "max_drawdown_pct": 15.0,
+    "daily_loss_pct": 5.0,
+    "min_free_margin_pct": 40.0,
+    "basket_tp_currency": 0.0,
+    "basket_sl_currency": 0.0,
+    "close_all_on_halt": true,
+    "resume_next_day": true
+  },
+  "session": {
+    "enabled": false,
+    "windows": [
+      "00:00-23:59"
+    ],
+    "trade_weekend": true,
+    "flat_before_weekend": false
+  }
+}

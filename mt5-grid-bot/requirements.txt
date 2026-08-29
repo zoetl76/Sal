@@ -1,0 +1,3 @@
+# Bot grid scalper BTC pour MetaTrader 5
+# Le paquet MetaTrader5 est Windows-only (le terminal MT5 doit tourner sur la meme machine).
+MetaTrader5>=5.0.45 ; sys_platform == "win32"

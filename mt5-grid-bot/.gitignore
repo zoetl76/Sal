@@ -1,0 +1,9 @@
+# Configuration locale (contient identifiants de compte) — voir config.example.json
+config.json
+logs/
+state/
+data/
+*.csv
+__pycache__/
+*.py[cod]
+.venv/
